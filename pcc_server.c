@@ -8,9 +8,13 @@
 # include <stdlib.h>
 # include <signal.h>
 # include <unistd.h>
+# include <sys/socket.h>
+# include <arpa/inet.h>
+# include <netinet/in.h>
+# include <sys/types.h>
 # define PROBLEM -1
 # define SUCCESSFUL 0
-
+# define QUEUE_LEN 10
 //---------------------------------------------------------------------------
 //                             Global Variables                                    
 //---------------------------------------------------------------------------
@@ -19,6 +23,7 @@
 unsigned int pcc_total [127] = {0};
 volatile sig_atomic_t is_last_request = 0;
 int is_in_middle_of_request = 0;
+int sockfd;
 
 //---------------------------------------------------------------------------
 //                        Request Struct related functions                                    
@@ -119,6 +124,7 @@ int validate_input(int argc, char* argv []){
 /*A function to run upon terminating*/
 int finalize(void){
     print_pcc_total();
+    close(sockfd);
     exit(0);
 }
 
@@ -133,12 +139,28 @@ void sigint_handler(int sig){
     }
 }
 
+void error_exit(void){
+    perror("");
+    exit(1);
+}
+
 
 //---------------------------------------------------------------------------
 //                                  Main                                    
 //---------------------------------------------------------------------------
 
 int main(int argc, char* argv []){
+    int confd;
+    //int length;
+
+    //Initialize and clear the structs needed to represent connectins
+    struct sockaddr_in serv_addr;
+    struct sockaddr_in my_addr;
+    struct sockaddr_in peer_addr;
+    socklen_t addr_size = sizeof(struct sockaddr_in);
+    memset(&serv_addr,0,addr_size);
+    memset(&my_addr,0,addr_size);
+    memset(&peer_addr,0,addr_size);
     //Firstly : set the signal handler to be my signal handler (To make sure when finishing everything is done atomicly)
     struct sigaction sa;
     sa.sa_flags = SA_RESTART;
@@ -151,9 +173,34 @@ int main(int argc, char* argv []){
     if (port_num == PROBLEM){
         return 1;
     }
+    
+    //1. Create the socket and check that completed successfuly
+    sockfd = socket(AF_INET,SOCK_STREAM,0);
+    if (sockfd < 0){
+        error_exit();
+    }
+    
+    //serv.addr Parameters for binding
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port = htons(port_num);
+
+    //2. Bind the socket to given port
+    bind(sockfd, (struct sockaddr*)&serv_addr , addr_size);
+    
+    //3. Start listening
+    if (listen(sockfd,QUEUE_LEN)<0){
+            error_exit();
+        }
     while (!is_last_request){
-        printf("Hello\n");
-        sleep(1);
+        confd = accept(sockfd, (struct sockaddr*) &peer_addr, &addr_size);
+        is_in_middle_of_request = 1;
+        /*Helpful Things for later:
+            u_long ntohl(u_long) : A function to convert from network endian to host endian
+            read and write should be in while loops to make sure completed (40:00 in recitation)
+        */
+       is_in_middle_of_request=0;
+       close (confd);
     }
     return finalize();
 }

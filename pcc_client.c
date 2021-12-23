@@ -8,8 +8,10 @@
 # include <stdlib.h>
 # include <signal.h>
 # include <unistd.h>
+# include <sys/socket.h>
 # include <arpa/inet.h>
-# include <errno.h>
+# include <netinet/in.h>
+# include <sys/types.h>
 # define PROBLEM -1
 # define SUCCESSFUL 0
 
@@ -101,7 +103,10 @@ int print_file(char* file_path){
     fclose(fptr);
     return SUCCESSFUL;
 }
-
+void error_exit(void){
+    perror("");
+    exit(1);
+}
 //---------------------------------------------------------------------------
 //                                  Main
 //---------------------------------------------------------------------------
@@ -109,17 +114,18 @@ int main (int argc, char* argv []){
     if (validate_arguments(argc,argv)==PROBLEM){
         return 1;
     }
-    struct sockaddr_in sa;
+    struct sockaddr_in serv_addr;
     char* ip_adr = argv[1];
     int port_num = atoi(argv[2]);
     char* file_path = argv[3];
 
     //Validate IP Adress
-    if (inet_pton(AF_INET,ip_adr,&(sa.sin_addr))==0){
+    int x = inet_pton(AF_INET,ip_adr,&(serv_addr.sin_addr));
+    if (x==0){
         fprintf(stderr,"Error: Ip address is invalid \n");
         return 1;
     }
-    if (inet_pton<0){
+    if (x<0){
         perror("");
     }
 
@@ -130,10 +136,32 @@ int main (int argc, char* argv []){
         return 1;
     }
 
+    //int net_length = htonl(length);
+
+
+
+    //Create the socket and bind it to the given port number
+    int sockfd = socket(AF_INET,SOCK_STREAM,0);
+    if (sockfd<0){
+        free(content);
+        error_exit();
+    }
+
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port_num);
+    socklen_t addrsize = sizeof(struct sockaddr_in );
+
+    if (connect (sockfd ,(struct sockaddr*) &serv_addr, addrsize)<0){
+        free(content);
+        close(sockfd);
+        error_exit();
+    }
     printf("Length of file is: %d \n",length);
     printf("Content of file is:\n%s\n",content);
 
+    close(sockfd);
     free(content);
-    printf ("Address is : %u | port number is : %d \n", sa.sin_addr.s_addr,port_num);
+    printf ("Address is : %u | port number is : %d \n", serv_addr.sin_addr.s_addr,port_num);
     
 }
