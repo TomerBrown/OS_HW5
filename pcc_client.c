@@ -9,9 +9,13 @@
 # include <signal.h>
 # include <unistd.h>
 # include <arpa/inet.h>
+# include <errno.h>
 # define PROBLEM -1
 # define SUCCESSFUL 0
 
+//---------------------------------------------------------------------------
+//                          Helper Functinos for main                                    
+//---------------------------------------------------------------------------
 
 /*Given a string representing the port number requester returns SUCCESSFUL if it is valid and PROBLEM if it isn't*/
 int validate_port(char* port_str){
@@ -33,7 +37,7 @@ int validate_port(char* port_str){
     return SUCCESSFUL;
 }
 
-
+/*Given the command line arguments returns whether the is a problem or that everything is fine*/
 int validate_arguments(int argc, char* argv[]){  
     if (argc != 4){
         fprintf(stderr, "Error: Expected exactly 3 argumnets but %d was given.\n",argc-1);
@@ -46,6 +50,27 @@ int validate_arguments(int argc, char* argv[]){
     return SUCCESSFUL;
 }
 
+//---------------------------------------------------------------------------
+//                          Debugging helper functions                                    
+//---------------------------------------------------------------------------
+/*Given a path to file print all it content to standard output*/
+int print_file(char* file_path){
+    FILE* fptr = fopen(file_path,"r");
+    if (fptr == NULL){
+        perror("");
+        return PROBLEM;
+    }
+    char c;
+    while ((c=getc(fptr))!=EOF){
+        printf("%c",c);
+    }
+    fclose(fptr);
+    return SUCCESSFUL;
+}
+
+//---------------------------------------------------------------------------
+//                                  Main
+//---------------------------------------------------------------------------
 int main (int argc, char* argv []){
     if (validate_arguments(argc,argv)==PROBLEM){
         return 1;
@@ -53,8 +78,9 @@ int main (int argc, char* argv []){
     struct sockaddr_in sa;
     char* ip_adr = argv[1];
     int port_num = atoi(argv[2]);
-    //char* file_path = argv[3];
+    char* file_path = argv[3];
 
+    //Validate IP Adress
     if (inet_pton(AF_INET,ip_adr,&(sa.sin_addr))==0){
         fprintf(stderr,"Error: Ip address is invalid \n");
         return 1;
@@ -63,6 +89,11 @@ int main (int argc, char* argv []){
         perror("");
     }
 
-    printf ("Adress is : %u | port number is : %d \n ", sa.sin_addr.s_addr,port_num);
+    if (print_file(file_path)==PROBLEM){
+        return 1;
+    }
+
+
+    printf ("Address is : %u | port number is : %d \n ", sa.sin_addr.s_addr,port_num);
 
 }
