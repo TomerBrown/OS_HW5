@@ -66,13 +66,18 @@ int file_len(char* file_path){
     return len;
 }
 
+/*Given a path to file and a initialized string with N chars the function copies the content from file into the string 
+    On failure returns PROBLEM
+*/
 int file_to_string(char* file_path, char* string, int N){
     FILE* fp = fopen(file_path,"r");
      if (fp == NULL){
         perror("");
+        fclose(fp);
         return PROBLEM;
     }
-    if (fread(string,N,N,fp)!=N){
+    if (fread(string,sizeof(char),N,fp)!=N){
+        fclose(fp);
         return PROBLEM;
     }
     fclose(fp);
@@ -121,9 +126,11 @@ int main (int argc, char* argv []){
     //Get info about the message we want to transmit to the server
     int length = file_len(file_path);
     char* content = calloc(length,sizeof(char));
-    file_to_string(file_path,content,length);
+    if (file_to_string(file_path,content,length)==PROBLEM){
+        return 1;
+    }
 
-    //printf("Length of file is: %d \n",N);
+    printf("Length of file is: %d \n",length);
     printf("Content of file is:\n%s\n",content);
 
     free(content);
