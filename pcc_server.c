@@ -17,7 +17,8 @@
 /*The Global Data structure to hold the number of times each printable char has appeared*/
 
 unsigned int pcc_total [127] = {0};
-static volatile sig_atomic_t is_last_request = 0;
+volatile sig_atomic_t is_last_request = 0;
+int is_in_middle_of_request = 0;
 
 //---------------------------------------------------------------------------
 //                        Request Struct related functions                                    
@@ -115,12 +116,21 @@ int validate_input(int argc, char* argv []){
     return atoi(port_str);
 }
 
+/*A function to run upon terminating*/
+int finalize(void){
+    print_pcc_total();
+    exit(0);
+}
+
 /*The handler for sigint function
 All it does is to raise a flag that the requeset being processed right now is the last one so the main
 loop will know it suppose to exit now/
 */
 void sigint_handler(int sig){
     is_last_request = 1;
+    if (!is_in_middle_of_request){
+        finalize();
+    }
 }
 
 
@@ -141,5 +151,9 @@ int main(int argc, char* argv []){
     if (port_num == PROBLEM){
         return 1;
     }
-    return SUCCESSFUL;
+    while (!is_last_request){
+        printf("Hello\n");
+        sleep(1);
+    }
+    return finalize();
 }

@@ -50,6 +50,34 @@ int validate_arguments(int argc, char* argv[]){
     return SUCCESSFUL;
 }
 
+/*Given a path to a file returns the number of charachters in that file
+On Failure - returns PROBLEM
+*/
+int file_len(char* file_path){
+    int len;
+    FILE* fp = fopen(file_path,"r");
+     if (fp == NULL){
+        perror("");
+        return PROBLEM;
+    }
+    fseek(fp, 0L, SEEK_END);
+    len = ftell(fp);
+    fclose(fp);
+    return len;
+}
+
+int file_to_string(char* file_path, char* string, int N){
+    FILE* fp = fopen(file_path,"r");
+     if (fp == NULL){
+        perror("");
+        return PROBLEM;
+    }
+    if (fread(string,N,N,fp)!=N){
+        return PROBLEM;
+    }
+    fclose(fp);
+    return SUCCESSFUL;
+}
 //---------------------------------------------------------------------------
 //                          Debugging helper functions                                    
 //---------------------------------------------------------------------------
@@ -64,6 +92,7 @@ int print_file(char* file_path){
     while ((c=getc(fptr))!=EOF){
         printf("%c",c);
     }
+    printf("\n");
     fclose(fptr);
     return SUCCESSFUL;
 }
@@ -89,11 +118,15 @@ int main (int argc, char* argv []){
         perror("");
     }
 
-    if (print_file(file_path)==PROBLEM){
-        return 1;
-    }
+    //Get info about the message we want to transmit to the server
+    int N = file_len(file_path);
+    char* string = calloc(N,sizeof(char));
+    file_to_string(file_path,string,N);
 
+    //printf("Length of file is: %d \n",N);
+    printf("Content of file is:\n%s\n",string);
 
-    printf ("Address is : %u | port number is : %d \n ", sa.sin_addr.s_addr,port_num);
-
+    free(string);
+    printf ("Address is : %u | port number is : %d \n", sa.sin_addr.s_addr,port_num);
+    
 }
