@@ -122,10 +122,10 @@ int validate_input(int argc, char* argv []){
 }
 
 /*A function to run upon terminating*/
-int finalize(void){
+int finalize(int status){
     print_pcc_total();
     close(sockfd);
-    exit(0);
+    exit(status);
 }
 
 /*The handler for sigint function
@@ -135,7 +135,7 @@ loop will know it suppose to exit now/
 void sigint_handler(int sig){
     is_last_request = 1;
     if (!is_in_middle_of_request){
-        finalize();
+        finalize(0);
     }
 }
 
@@ -151,6 +151,9 @@ void error_exit(void){
 
 int main(int argc, char* argv []){
     int confd;
+    uint32_t tmp, length;
+    int total_read;
+    int count_read;
     //int length;
 
     //Initialize and clear the structs needed to represent connectins
@@ -196,7 +199,19 @@ int main(int argc, char* argv []){
     while (!is_last_request){
         confd = accept(sockfd, (struct sockaddr*) &peer_addr, &addr_size);
         is_in_middle_of_request = 1;
-        
+        total_read = 0;
+        while (total_read < 4){
+            count_read = read(confd,&tmp,4);
+            if (count_read<1){
+                is_in_middle_of_request=0;
+                close (confd);
+                exit(1);
+            }
+            total_read+= count_read;
+        }
+        length = ntohl(tmp);
+
+        //printf("Length recivied is: %d\n",length);
         
 
         /*Helpful Things for later:
@@ -206,5 +221,5 @@ int main(int argc, char* argv []){
        is_in_middle_of_request=0;
        close (confd);
     }
-    return finalize();
+    return finalize(0);
 }

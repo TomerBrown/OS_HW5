@@ -156,11 +156,24 @@ int main (int argc, char* argv []){
         error_exit();
     }
 
+    uint32_t net_int = htonl(length);
+    int count_written;
+    int all_written = 0;
+    while (all_written<4){
+        count_written = write(sockfd,&net_int,4);
+        if (count_written < 1){
+            free(content);
+            close(sockfd);
+            error_exit();
+        }
+        all_written += count_written;
+    }
+
     
-    //printf("Content of file is:\n%s\n",content);
+    
 
     close(sockfd);
     free(content);
-    //printf ("Address is : %u | port number is : %d \n", serv_addr.sin_addr.s_addr,port_num);
+    
     
 }
