@@ -119,9 +119,9 @@ int main (int argc, char* argv []){
     }
 
     //Get info about the message we want to transmit to the server
-    int N = file_len(file_path);
-    char* string = calloc(N,sizeof(char));
-    file_to_string(file_path,string,N);
+    int length = file_len(file_path);
+    char* string = calloc(length,sizeof(char));
+    file_to_string(file_path,string,length);
 
     //printf("Length of file is: %d \n",N);
     printf("Content of file is:\n%s\n",string);
