@@ -120,13 +120,13 @@ int main (int argc, char* argv []){
 
     //Get info about the message we want to transmit to the server
     int length = file_len(file_path);
-    char* string = calloc(length,sizeof(char));
-    file_to_string(file_path,string,length);
+    char* content = calloc(length,sizeof(char));
+    file_to_string(file_path,content,length);
 
     //printf("Length of file is: %d \n",N);
-    printf("Content of file is:\n%s\n",string);
+    printf("Content of file is:\n%s\n",content);
 
-    free(string);
+    free(content);
     printf ("Address is : %u | port number is : %d \n", sa.sin_addr.s_addr,port_num);
     
 }
