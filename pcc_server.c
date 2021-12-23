@@ -192,9 +192,13 @@ int main(int argc, char* argv []){
     if (listen(sockfd,QUEUE_LEN)<0){
             error_exit();
         }
+
     while (!is_last_request){
         confd = accept(sockfd, (struct sockaddr*) &peer_addr, &addr_size);
         is_in_middle_of_request = 1;
+        
+        
+
         /*Helpful Things for later:
             u_long ntohl(u_long) : A function to convert from network endian to host endian
             read and write should be in while loops to make sure completed (40:00 in recitation)

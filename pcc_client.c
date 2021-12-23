@@ -9,6 +9,7 @@
 # include <signal.h>
 # include <unistd.h>
 # include <sys/socket.h>
+# include <netdb.h>
 # include <arpa/inet.h>
 # include <netinet/in.h>
 # include <sys/types.h>
@@ -130,15 +131,12 @@ int main (int argc, char* argv []){
     }
 
     //Get info about the message we want to transmit to the server
-    int length = file_len(file_path);
+    uint32_t length = file_len(file_path);
+    printf("Trying to send %u bytes from client\n",length);
     char* content = calloc(length,sizeof(char));
     if (file_to_string(file_path,content,length)==PROBLEM){
         return 1;
     }
-
-    //int net_length = htonl(length);
-
-
 
     //Create the socket and bind it to the given port number
     int sockfd = socket(AF_INET,SOCK_STREAM,0);
@@ -157,11 +155,12 @@ int main (int argc, char* argv []){
         close(sockfd);
         error_exit();
     }
-    printf("Length of file is: %d \n",length);
-    printf("Content of file is:\n%s\n",content);
+
+    
+    //printf("Content of file is:\n%s\n",content);
 
     close(sockfd);
     free(content);
-    printf ("Address is : %u | port number is : %d \n", serv_addr.sin_addr.s_addr,port_num);
+    //printf ("Address is : %u | port number is : %d \n", serv_addr.sin_addr.s_addr,port_num);
     
 }
