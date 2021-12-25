@@ -8,6 +8,7 @@
 # include <stdlib.h>
 # include <signal.h>
 # include <unistd.h>
+# include <errno.h>
 # include <sys/socket.h>
 # include <arpa/inet.h>
 # include <netinet/in.h>
@@ -68,17 +69,25 @@ void print_pcc_total(){
     }
 }
 
-/*A function to count how many printables. It updates the global array pcc_total*/
+/*A function to count how many printables.*/
 unsigned int count_printable(char* str){
     int n = strlen(str);
     unsigned int printables_counter = 0;
     for (int i=0 ; i<n ;i++){
         if (str[i] >=32  && str[i] <=126){
-            pcc_total [(int) str[i]] ++ ;
             printables_counter++;
         }
     }
     return printables_counter;
+}
+
+void update_pcc_total(char* str){
+    int n = strlen(str);
+    for (int i=0 ; i<n ;i++){
+        if (str[i] >=32  && str[i] <=126){
+            pcc_total[(int)str[i]] ++;
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -144,6 +153,27 @@ void error_exit(void){
     exit(1);
 }
 
+/*Given the file descriptor of the connections and the returned value from read and write
+returns:
+SUCCESFUL - if numebr of bytes writeen/read from connection is valid
+PROBLEM - if a tcp error occured (e.i. errno == ETIMEDOUT/ ECONNRESET / EPIP )
+EXITS -   if an error occured which is not one of the above mentioned*/
+int handle_tcp_errors (int fd, int count){
+    if (count < 1){
+        if (!(errno==ETIMEDOUT || errno == ECONNRESET || errno == EPIPE)){
+        close (fd);
+        perror("Error: ");
+        exit(1);
+        }
+        else{
+            perror("TCP Error:");
+            close(fd);
+            return PROBLEM;
+        }
+    }
+    return SUCCESSFUL;
+}
+
 
 //---------------------------------------------------------------------------
 //                                  Main                                    
@@ -152,8 +182,12 @@ void error_exit(void){
 int main(int argc, char* argv []){
     int confd;
     uint32_t tmp, length;
-    int total_read;
-    int count_read;
+    int total_read, count_read;
+    int total_write, count_write;
+    char* message_from_client;
+    int printable_chars;
+    uint32_t printable_chars_int;
+    int error_before = 0;
     //int length;
 
     //Initialize and clear the structs needed to represent connectins
@@ -182,6 +216,8 @@ int main(int argc, char* argv []){
     if (sockfd < 0){
         error_exit();
     }
+    unsigned int yes = 1;
+    setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
     
     //serv.addr Parameters for binding
     serv_addr.sin_family = AF_INET;
@@ -195,31 +231,69 @@ int main(int argc, char* argv []){
     if (listen(sockfd,QUEUE_LEN)<0){
             error_exit();
         }
-
+    
     while (!is_last_request){
         confd = accept(sockfd, (struct sockaddr*) &peer_addr, &addr_size);
         is_in_middle_of_request = 1;
+        error_before = 0;
+        //Get the length of the message from the client
         total_read = 0;
         while (total_read < 4){
-            count_read = read(confd,&tmp,4);
-            if (count_read<1){
+            count_read = read(confd,&tmp+total_read,4-total_read);
+            if (count_read<0){
                 is_in_middle_of_request=0;
-                close (confd);
-                exit(1);
+                if (handle_tcp_errors(confd,count_read)==PROBLEM){}
+                
+            }
+            if (handle_tcp_errors (confd,count_read)==PROBLEM){
+                is_in_middle_of_request=0;
+                error_before = 1;
+                break;
             }
             total_read+= count_read;
         }
-        length = ntohl(tmp);
-
-        //printf("Length recivied is: %d\n",length);
+        if (!error_before){
+            length = ntohl(tmp);
+            message_from_client = calloc(length,1);
+            //printf("Length recivied is: %d\n",length);
+            total_read = 0;
+            while (total_read < length){
+                count_read = read(confd,message_from_client+total_read,length-total_read);
+                if (handle_tcp_errors(confd,count_read)==PROBLEM){
+                    is_in_middle_of_request=0;
+                    free (message_from_client);
+                    error_before = 1;
+                    break;
+                }
+                total_read+= count_read;
+            }
+        }
+        if (!error_before){
+            printable_chars = count_printable(message_from_client);
+            printable_chars_int = htonl(printable_chars);
+            total_write = 0;
+            while (total_write < 4){
+                count_write = write(confd,(char*) (&printable_chars_int)+total_write ,4-total_write);
+                if (count_write<1){
+                    is_in_middle_of_request=0;
+                    close (confd);
+                    exit(1);
+                }
+                if (handle_tcp_errors(confd,count_write)==PROBLEM){
+                    error_before = 1;
+                    free(message_from_client);
+                    break;
+                }
+                total_write += count_write;
+            }
+        }
+        if (!error_before){
+            update_pcc_total(message_from_client);
+            free(message_from_client);
+        }
         
-
-        /*Helpful Things for later:
-            u_long ntohl(u_long) : A function to convert from network endian to host endian
-            read and write should be in while loops to make sure completed (40:00 in recitation)
-        */
-       is_in_middle_of_request=0;
-       close (confd);
+        is_in_middle_of_request=0;
+        close (confd);
     }
     return finalize(0);
 }

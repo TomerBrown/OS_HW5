@@ -10,6 +10,7 @@
 # include <unistd.h>
 # include <sys/socket.h>
 # include <netdb.h>
+# include <errno.h>
 # include <arpa/inet.h>
 # include <netinet/in.h>
 # include <sys/types.h>
@@ -104,6 +105,14 @@ int print_file(char* file_path){
     fclose(fptr);
     return SUCCESSFUL;
 }
+
+/*Given the file descriptor of the connections and the returned value from read and write
+returns:
+SUCCESFUL - if numebr of bytes writeen/read from connection is valid
+PROBLEM - if a tcp error occured (e.i. errno == ETIMEDOUT/ ECONNRESET / EPIP )
+EXITS -   if an error occured which is not one of the above mentioned*/
+
+
 void error_exit(void){
     perror("");
     exit(1);
@@ -132,7 +141,7 @@ int main (int argc, char* argv []){
 
     //Get info about the message we want to transmit to the server
     uint32_t length = file_len(file_path);
-    printf("Trying to send %u bytes from client\n",length);
+    //printf("Trying to send %u bytes from client\n",length);
     char* content = calloc(length,sizeof(char));
     if (file_to_string(file_path,content,length)==PROBLEM){
         return 1;
@@ -144,6 +153,9 @@ int main (int argc, char* argv []){
         free(content);
         error_exit();
     }
+    unsigned int yes = 1;
+    setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(yes));
+    
 
 
     serv_addr.sin_family = AF_INET;
@@ -155,12 +167,11 @@ int main (int argc, char* argv []){
         close(sockfd);
         error_exit();
     }
-
     uint32_t net_int = htonl(length);
     int count_written;
     int all_written = 0;
     while (all_written<4){
-        count_written = write(sockfd,&net_int,4);
+        count_written = write(sockfd,(char*)&net_int + all_written,4-all_written);
         if (count_written < 1){
             free(content);
             close(sockfd);
@@ -169,11 +180,33 @@ int main (int argc, char* argv []){
         all_written += count_written;
     }
 
-    
-    
+    all_written = 0;
+    while (all_written<length){
+        count_written = write(sockfd,content+all_written,length-all_written);
+        if (count_written < 1){
+            free(content);
+            close(sockfd);
+            error_exit();
+        }
+        all_written += count_written;
+    }
 
+    int all_read = 0;
+    uint32_t tmp , printable_chars;
+    int count_read;
+    while (all_read < 4){
+        count_read = read(sockfd,(char*)(&tmp)+all_read,4-all_read);
+        if (count_read < 1){
+            free(content);
+            close(sockfd);
+            error_exit();
+        }
+        all_read+=count_read;
+    }
+    printable_chars = ntohl(tmp);
+    printf("# of printable characters: %u\n", printable_chars);
     close(sockfd);
     free(content);
-    
+    return (0);
     
 }
