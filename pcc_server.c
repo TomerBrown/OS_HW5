@@ -26,42 +26,6 @@ volatile sig_atomic_t is_last_request = 0;
 int is_in_middle_of_request = 0;
 int sockfd;
 
-//---------------------------------------------------------------------------
-//                        Request Struct related functions                                    
-//---------------------------------------------------------------------------
-
-/*A struct to hold the input and output of the requeseted needs to be proccessed in the server
-Has the following fields:
-1) int len (input)
-2) char* string (input)
-3) int printables_number (output)
-*/
-typedef struct Request {
-    unsigned int len;
-    char* string;
-    int printables_number;
-} Request;
-
-/*A function that initializes the request and allocates memory according to the given n
-If failed allocating memory - returns NULL
-*/
-Request* init_request(unsigned int n){
-    Request* req = malloc(sizeof(Request));
-    if (req==NULL){
-        return NULL;
-    }
-    req -> len = n ;
-    req ->string = calloc(n,sizeof(char));
-    req ->printables_number = 0;
-    return req;
-}
-
-/*Deep free the request struct*/
-void free_request (Request* req){
-    free(req->string);
-    free (req);
-}
-
 /*Prints the data inside pcc_total in the requested format*/
 void print_pcc_total(){
     for (int i =32; i<=126 ; i++){
@@ -199,12 +163,7 @@ int main(int argc, char* argv []){
     memset(&my_addr,0,addr_size);
     memset(&peer_addr,0,addr_size);
     //Firstly : set the signal handler to be my signal handler (To make sure when finishing everything is done atomicly)
-    struct sigaction sa;
-    sa.sa_flags = SA_RESTART;
-    sa.sa_handler = &sigint_handler;
-    sa.sa_flags = 0;
-    sigaction(SIGINT,&sa,NULL);
-    
+    signal(SIGINT,&sigint_handler);
     //Secondly: Validate the input to make sure is correct
     int port_num = validate_input(argc,argv);
     if (port_num == PROBLEM){
