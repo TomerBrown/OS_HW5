@@ -1,0 +1,6 @@
+#!/bin/sh
+clear
+gcc -O3 -D_POSIX_C_SOURCE=200809 -Wall -std=c11 pcc_client.c -o client
+./client 127.0.0.1 2555 "./tomer.txt"
+./client 127.0.0.1 2555 "./test.txt"
+./client 127.0.0.1 2555 "./pcc_test.txt"
